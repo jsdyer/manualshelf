@@ -1,1 +1,44 @@
-{"pageSize":24,"presets":[{"label":"Nikon D70","query":"Nikon D70"},{"label":"ThinkPad T42","query":"ThinkPad T42"},{"label":"Commodore 64","query":"Commodore 64"},{"label":"Sewing machine","query":"Singer sewing"}],"defaultScope":"manuals"}
+{
+  "pageSize": 24,
+  "presets": [
+    {
+      "label": "Nikon D70",
+      "query": "Nikon D70"
+    },
+    {
+      "label": "ThinkPad T42",
+      "query": "ThinkPad T42"
+    },
+    {
+      "label": "Commodore 64",
+      "query": "Commodore 64"
+    },
+    {
+      "label": "Sewing machine",
+      "query": "Singer sewing"
+    }
+  ],
+  "defaultScope": "manuals",
+  "modelAliases": [
+    {
+      "model": "Nikon D70",
+      "aliases": [
+        "Nikon D-70"
+      ]
+    },
+    {
+      "model": "ThinkPad T42",
+      "aliases": [
+        "IBM ThinkPad T42",
+        "IBM T42"
+      ]
+    },
+    {
+      "model": "Commodore 64",
+      "aliases": [
+        "Commodore C64",
+        "Commodore C-64"
+      ]
+    }
+  ]
+}

@@ -22,6 +22,14 @@ def main():
                 docs=[{'identifier':'camera-1','title':'Camera ZX900 user manual','creator':'Fixture manufacturer','year':'1997'}, {'identifier':'camera-2','title':'Camera ZX900 service manual','year':'1998'}]
                 page.route('https://archive.org/advancedsearch.php*',lambda r:r.fulfill(json={'response':{'numFound':2,'docs':docs}}))
                 page.route('https://archive.org/metadata/*',lambda r:r.fulfill(json={'metadata':next(d for d in docs if d['identifier']==r.request.url.rsplit('/',1)[-1]),'files':[{'name':'original.pdf','format':'Text PDF','source':'original','size':'1234'}]}))
+                # Minimal genuine one-page PDF fixture exercises actual vendored PDF.js extraction.
+                objects=[b'<< /Type /Catalog /Pages 2 0 R >>',b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']
+                stream=b'BT /F1 12 Tf 72 720 Td (Adjust shutter speed safely.) Tj ET'
+                objects.append(b'<< /Length '+str(len(stream)).encode()+b' >>\nstream\n'+stream+b'\nendstream')
+                pdf=b'%PDF-1.4\n';offsets=[]
+                for i,obj in enumerate(objects,1): offsets.append(len(pdf));pdf+=str(i).encode()+b' 0 obj\n'+obj+b'\nendobj\n'
+                xref=len(pdf);pdf+=b'xref\n0 6\n0000000000 65535 f \n'+b''.join(f'{offset:010} 00000 n \n'.encode() for offset in offsets)+b'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+str(xref).encode()+b'\n%%EOF'
+                page.route('https://archive.org/download/*',lambda route:route.fulfill(status=206 if route.request.headers.get('range') else 200,body=pdf,content_type='application/pdf',headers={'Access-Control-Allow-Origin':'*'}))
                 page.route('https://archive.org/services/img/*',lambda r:r.abort())
                 page.route('https://coolcode.ca/**',lambda r:r.abort())
                 url=f'http://127.0.0.1:{server.server_port}/manualshelf/'
@@ -29,6 +37,12 @@ def main():
                 expect(page.locator('#results .card')).to_have_count(2)
                 page.get_by_role('button',name='Inspect files').first.click()
                 expect(page.locator('#detail a').filter(has_text='Text PDF')).to_have_attribute('href','https://archive.org/download/camera-1/original.pdf')
+                page.get_by_role('button',name='Verify download availability',exact=True).click()
+                expect(page.locator('#detail')).to_contain_text('Download responded HTTP 206')
+                page.get_by_role('textbox',name='Find text in PDF').fill('shutter speed')
+                page.get_by_role('button',name='Search PDF pages',exact=True).click()
+                expect(page.locator('.pdf-search')).to_contain_text('1 matching PDF pages',timeout=30000)
+                expect(page.get_by_role('link',name='Open PDF page 1')).to_have_attribute('href','https://archive.org/download/camera-1/original.pdf#page=1')
                 page.locator('#equipment').fill('My kitchen camera');page.locator('#notes').fill('=notes stay local\nrevision 2')
                 page.get_by_role('button',name='Save to my cabinet').click();expect(page.locator('#detail-status')).to_contain_text('Saved on this device')
                 page.locator('#results').get_by_role('button',name='Compare',exact=True).first.click()

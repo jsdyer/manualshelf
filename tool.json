@@ -1,7 +1,7 @@
 {
   "id": "manualshelf",
   "title": "Manual Shelf",
-  "description": "Find archived equipment manuals, inspect available editions and build a private equipment cabinet.",
+  "description": "Find equipment manuals, search PDF pages, compare editions and save a private equipment cabinet.",
   "category": "projects",
   "tags": [
     "manuals",

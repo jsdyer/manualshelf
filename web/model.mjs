@@ -1,11 +1,12 @@
 export const SCHEMA='manualshelf.cabinet.v1';
 export const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,199}$/.test(id);
 export const text=(v,max=2000)=>String(Array.isArray(v)?v.join('; '):v??'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
-export function searchURL(query,{page=1,rows=24,scope='manuals',sort='relevance'}={}){
+export function searchURL(query,{page=1,rows=24,scope='manuals',sort='relevance',aliases=[]}={}){
  const words=text(query,160).match(/[\p{L}\p{N}][\p{L}\p{N}._-]*/gu)||[];
  if(!words.length)throw Error('Enter a manufacturer, model or manual title.');
  if(!Number.isInteger(page)||page<1||page>10000||!Number.isInteger(rows)||rows<1||rows>50)throw Error('Invalid search page.');
- const terms=words.slice(0,20).map(w=>'"'+w+'"').join(' AND ');
+ const variants=[query,...aliases.filter(a=>typeof a==='string').slice(0,8)];
+ const terms=variants.map(v=>(text(v,160).match(/[\p{L}\p{N}][\p{L}\p{N}._-]*/gu)||[]).slice(0,20).map(w=>'\"'+w+'\"').join(' AND ')).filter(Boolean).map(v=>'('+v+')').join(' OR ');
  const q='mediatype:texts'+(scope==='all'?'':' AND (collection:manuals OR title:manual OR title:instructions OR title:handbook)')+' AND ('+terms+')';
  const u=new URL('https://archive.org/advancedsearch.php');u.searchParams.set('q',q);for(const f of ['identifier','title','creator','year','date','language','description'])u.searchParams.append('fl[]',f);u.searchParams.set('rows',rows);u.searchParams.set('page',page);u.searchParams.set('output','json');
  if(sort==='newest')u.searchParams.append('sort[]','date desc');if(sort==='oldest')u.searchParams.append('sort[]','date asc');return u.href;
@@ -33,3 +34,7 @@ export function parseCabinet(value){const d=typeof value==='string'?JSON.parse(v
 export function mergeCabinet(old,incoming){const byId=new Map(old.map(i=>[i.id,i]));for(const i of incoming)if(!byId.has(i.id))byId.set(i.id,i);if(byId.size>300)throw Error('A cabinet can hold up to 300 manuals.');return [...byId.values()];}
 export function csv(rows){return rows.map(r=>r.map(v=>{let s=String(v??'');if(/^[=+@-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';}).join(',')).join('\r\n');}
 export function cabinetCSV(items){return csv([['Equipment','Manual','Creator','Record date','Type inferred from title','Source','Metadata checked','Notes'],...items.map(i=>[i.equipment,i.title,i.creator,i.year,i.kind,itemURL(i.id),i.checkedAt,i.notes])]);}
+
+export function aliasesFor(query,groups=[]){const normalize=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');const q=normalize(query);const group=groups.find(g=>[g.model,...(g.aliases||[])].some(a=>normalize(a)===q));return group?[...new Set([group.model,...group.aliases])].filter(a=>normalize(a)!==q||a!==query).slice(0,8):[];}
+export function pageCitation(item,file,page){if(!Number.isInteger(page)||page<1||page>10000)throw Error('Use a PDF page number from 1 to 10000.');return `${item.title}. PDF page ${page} (file page, not printed numbering). ${fileURL(item.id,file.name)}#page=${page}`;}
+export function matchPages(pages,query){const q=String(query).trim().toLowerCase();if(q.length<2||q.length>160)throw Error('Search for 2–160 characters.');return pages.flatMap((text,i)=>{const at=text.toLowerCase().indexOf(q);return at<0?[]:[{page:i+1,excerpt:text.slice(Math.max(0,at-85),at+q.length+160)}];});}

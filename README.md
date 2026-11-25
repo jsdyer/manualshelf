@@ -8,6 +8,7 @@ Search any manufacturer/model or manual title, inspect document formats and orig
 
 <!-- coolcode:guide -->
 Search your manufacturer and model, then inspect the source record before choosing a PDF or other document format. Archive dates and title-based manual types do not establish compatibility; verify the exact model, region and revision in the document. Save an equipment label and notes only when you choose, compare up to three records, and export a cabinet backup. Search terms and selected item IDs go to Internet Archive; your private labels, notes and imported cabinet stay on your device. Restricted files remain subject to Internet Archive access controls.
+Configured model-number aliases expand exact model searches; aliases are search aids, never a compatibility guarantee. Inspect a record to compare file formats and editions, then search a selected PDF’s existing text layer locally. Results link to exact PDF file pages and offer citations that distinguish file pages from printed numbering. Download availability checks make a bounded GET request and display the response status and time; metadata alone is not labelled verified. PDFs are fetched only after Search PDF pages, limited to 50 MB and 500 pages; image-only scans need OCR from the provider. Your cabinet and notes stay local.
 <!-- /coolcode:guide -->
 
 ## How it works
@@ -45,3 +46,13 @@ The build is offline. Browser smoke tests use deterministic API fixtures to exer
 - [Automated access guidance](https://archive.org/developers/bots.html)
 
 Requests are user-triggered with limited pagination. No background bulk downloading, access-control bypass, copyrighted mirror or automatic repair instruction is supplied. Use original source links and qualified service advice where appropriate.
+
+## PDF pages, aliases and verified links
+
+`web/config.json` has `modelAliases`, a list of `{model, aliases}` groups. Add any manufacturer/model group; matching ignores punctuation/case and expands only a recognized complete model query. Existing arbitrary model search still works. Inspect files before comparing editions; no metadata comparison promises compatibility or textual equality.
+
+**Verify download availability** sends a one-byte range GET and cancels the body after reading status. Some servers ignore Range; the app does not continue downloading the file. A successful status is a dated access observation, not a cryptographic integrity check. Private/restricted files are not bypassed. Browser CORS or source errors are explicitly unverified.
+
+**Search PDF pages** downloads one public PDF on demand (50 MB / 500-page cap), then extracts its existing text with vendored Mozilla PDF.js 6.5.438. Search phrases remain local. File page 1 may be a cover, so citations deliberately identify PDF page numbers. Image-only scans cannot be searched without an existing OCR text layer. PDF.js does not execute document JavaScript; evaluation support is disabled. Its Apache-2.0 licence and npm integrity provenance are in `web/vendor/pdfjs/`.
+
+To update PDF.js, use an official npm package, verify its SHA-512 integrity, replace both matching `pdf.mjs` and `pdf.worker.mjs`, retain the licence, and rerun app/browser tests. Runtime CDN script loading is not used. The ordinary offline build includes the reviewed local files. No collector or Worker/API key is introduced.
