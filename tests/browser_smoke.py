@@ -29,7 +29,7 @@ def main():
                 pdf=b'%PDF-1.4\n';offsets=[]
                 for i,obj in enumerate(objects,1): offsets.append(len(pdf));pdf+=str(i).encode()+b' 0 obj\n'+obj+b'\nendobj\n'
                 xref=len(pdf);pdf+=b'xref\n0 6\n0000000000 65535 f \n'+b''.join(f'{offset:010} 00000 n \n'.encode() for offset in offsets)+b'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+str(xref).encode()+b'\n%%EOF'
-                page.route('https://archive.org/download/*',lambda route:route.fulfill(status=206 if route.request.headers.get('range') else 200,body=pdf,content_type='application/pdf',headers={'Access-Control-Allow-Origin':'*'}))
+                page.route('https://archive.org/download/**',lambda route:route.fulfill(status=206 if route.request.headers.get('range') else 200,body=pdf,content_type='application/pdf',headers={'Access-Control-Allow-Origin':'*'}))
                 page.route('https://archive.org/services/img/*',lambda r:r.abort())
                 page.route('https://coolcode.ca/**',lambda r:r.abort())
                 url=f'http://127.0.0.1:{server.server_port}/manualshelf/'
