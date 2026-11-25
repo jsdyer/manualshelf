@@ -39,8 +39,8 @@ export function mountPDFSearch(container,item){
     if(!new TextDecoder().decode(bytes.slice(0,1024)).includes('%PDF-'))throw Error('The selected file is not a PDF document.');
     if(own!==generation)return;
     const pdfjs=await import('./vendor/pdfjs/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdfjs/pdf.worker.mjs',import.meta.url).href;
-    const pdf=await pdfjs.getDocument({data:bytes,isEvalSupported:false,useSystemFonts:false}).promise;
-    try{if(pdf.numPages>500)throw Error('This PDF exceeds the 500-page local-search limit.');const next=[];for(let n=1;n<=pdf.numPages;n++){if(own!==generation)return;const p=await pdf.getPage(n),text=await p.getTextContent();next.push(text.items.map(x=>x.str||'').join(' '));p.cleanup();if(n%20===0)status.textContent='Reading page '+n+' of '+pdf.numPages+'…';}pages=next;loaded=identity;}finally{await pdf.destroy();}
+    const task=pdfjs.getDocument({data:bytes,isEvalSupported:false,useSystemFonts:false});const pdf=await task.promise;
+    try{if(pdf.numPages>500)throw Error('This PDF exceeds the 500-page local-search limit.');const next=[];for(let n=1;n<=pdf.numPages;n++){if(own!==generation)return;const p=await pdf.getPage(n),text=await p.getTextContent();next.push(text.items.map(x=>x.str||'').join(' '));p.cleanup();if(n%20===0)status.textContent='Reading page '+n+' of '+pdf.numPages+'…';}pages=next;loaded=identity;}finally{await task.destroy();}
    }
    if(own!==generation)return;
    const hits=matchPages(pages,input.value);status.textContent=hits.length+' matching PDF pages of '+pages.length+'. Printed page numbers may differ.'+(localFile?' Local file: '+localFile.name+'. Its identity has not been matched to the archive record.':'');
