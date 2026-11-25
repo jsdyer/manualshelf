@@ -1,21 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanLines } from '../web/model.mjs';
-test('trims, removes blanks and preserves first-seen order', () => {
-  assert.deepEqual(cleanLines('  Halifax\nLangley\nHalifax\n\nVancouver  '), {
-    text: 'Halifax\nLangley\nVancouver', count: 3, removed: 1,
-  });
-});
-test('supports Windows and old Mac line endings', () => {
-  assert.equal(cleanLines('a\r\nb\ra').text, 'a\nb');
-});
-test('empty text and whitespace produce an empty result', () => {
-  assert.deepEqual(cleanLines(' \n\t'), { text: '', count: 0, removed: 0 });
-});
-test('preserves case and Unicode', () => {
-  assert.equal(cleanLines('Québec\nquébec\n東京\nQuébec').text, 'Québec\nquébec\n東京');
-});
-test('treats markup as ordinary text', () => {
-  assert.equal(cleanLines('<script>alert(1)</script>\n<script>alert(1)</script>').text, '<script>alert(1)</script>');
-});
-test('rejects non-text input', () => { assert.throws(() => cleanLines(null), TypeError); });
+import {SCHEMA,searchURL,parseSearch,parseDetail,fileURL,savedItem,parseCabinet,mergeCabinet,cabinetCSV,bytes} from '../web/model.mjs';
+const item={id:'camera-123',title:'Camera user manual',checkedAt:'2024-03-01T00:00:00Z'};
+test('arbitrary searches are literal terms, paginated and scoped',()=>{const u=new URL(searchURL('Unknown ZX-900 OR title:*',{page:3,rows:12,sort:'oldest'}));assert.match(u.searchParams.get('q'),/"Unknown" AND "ZX-900" AND "OR" AND "title"/);assert.equal(u.searchParams.get('page'),'3');assert.equal(u.searchParams.get('sort[]'),'date asc');assert(!u.searchParams.get('q').includes('title:*'));assert(!new URL(searchURL('東京',{scope:'all'})).searchParams.get('q').includes('collection:manuals'));});
+test('invalid searches fail locally',()=>{assert.throws(()=>searchURL('***'));assert.throws(()=>searchURL('a',{page:0}));assert.throws(()=>searchURL('a',{rows:101}));});
+test('search response validates structure and strips unsafe markup',()=>{const r=parseSearch({response:{numFound:2,docs:[{identifier:'a',title:'<img src=x>Manual',creator:['A','B']},{identifier:'../x'}]}},'2024-01-01');assert.equal(r.items.length,1);assert.equal(r.items[0].title,'Manual');assert.equal(r.items[0].creator,'A; B');assert.throws(()=>parseSearch({error:'bad'}));});
+test('document files retain provenance, encoding and advertised checksums',()=>{const d=parseDetail({metadata:{identifier:'a',title:'Manual'},files:[{name:'guide 1.pdf',source:'original',format:'Text PDF',size:'2048',sha1:'a'.repeat(40)},{name:'private.pdf',format:'PDF',private:'true'},{name:'meta.xml',format:'Metadata'}]},'a');assert.equal(d.files.length,1);assert.equal(d.files[0].original,true);assert.equal(d.files[0].bytes,2048);assert.equal(d.files[0].sha1.length,40);assert.match(d.files[0].url,/guide%201.pdf$/);});
+test('invalid items and escaping file paths fail safely',()=>{assert.throws(()=>parseDetail({},'a'));assert.throws(()=>parseDetail({metadata:{identifier:'b'},files:[]},'a'));for(const name of ['../x.pdf','x/../y.pdf','x\\file.pdf','\n.pdf'])assert.throws(()=>fileURL('a',name));assert.equal(fileURL('a','folder/été #1.pdf'),'https://archive.org/download/a/folder/%C3%A9t%C3%A9%20%231.pdf');});
+test('cabinet round trip preserves source check dates and local notes',()=>{const saved=savedItem(item,'Kitchen','line1\nline2');const restored=parseCabinet(JSON.stringify({schema:SCHEMA,items:[saved]}));assert.deepEqual(restored,[saved]);assert.equal(restored[0].checkedAt,'2024-03-01T00:00:00Z');assert.equal(savedItem({id:'x'}).checkedAt,null);});
+test('imports reject duplicates and excessive collections',()=>{assert.throws(()=>parseCabinet({schema:SCHEMA,items:[item,item]}));assert.throws(()=>parseCabinet({schema:SCHEMA,items:Array.from({length:301},(_,i)=>({...item,id:'a'+i}))}));assert.throws(()=>parseCabinet({schema:'other',items:[]}));});
+test('imports expand defaults and retain existing notes',()=>{const a=savedItem(item,'old','keep');const b=savedItem({...item,id:'arbitrary-unlisted-927'});const r=mergeCabinet([a],[{...a,notes:'replace'},b]);assert.equal(r.length,2);assert.equal(r[0].notes,'keep');assert.equal(r[1].id,b.id);});
+test('CSV neutralizes formulas, escapes quotes and keeps line breaks',()=>{const c=cabinetCSV([savedItem(item,'=1+1','a,"b"\nc')]);assert.match(c,/'=1\+1/);assert.match(c,/a,""b""\nc/);});
+test('format unknown sizes without inventing zero',()=>{assert.equal(bytes(null),'Size unknown');assert.equal(bytes(2048),'2.0 KB');});
